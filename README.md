@@ -2,7 +2,7 @@
 
 ## Overview
 
-Digital Futures ROS is a computer vision based localization system for the mobile robots being implemented at the Digital Futures Workshop 2019. It also offers a Ros-bridge interface for controlling the robots' movements through Grasshopper environment.
+Digital Futures ROS is a computer vision based localization system for the mobile robots being implemented at the Digital Futures Workshop 2019. It also offers a Ros-bridge interface for controlling the robots' movements through Grasshopper environment. It is intended for the Raspberry Pi Zero W running Raspbian Stretch.
 
 **Keywords:** opencv, ros, localization, mobile robotics
 
@@ -14,7 +14,7 @@ The source code is released under (N/A)
 Affiliation: Institute for Computational Design and Construction (ICD) <br />
 Maintainer: Nicolas KK, nkal@mica.edu**
 
-The HoloCV package has been tested under [ROS] Kinetic and Raspbian Stretch. This is research code, expect that it changes often and any fitness for a particular purpose is disclaimed.
+The Digital Futures ROS package has been tested under [ROS] Kinetic and Raspbian Stretch. This is research code, expect that it changes often and any fitness for a particular purpose is disclaimed.
 
 
 ## Installation
@@ -25,19 +25,23 @@ The HoloCV package has been tested under [ROS] Kinetic and Raspbian Stretch. Thi
 #### Dependencies
 
 - [Robot Operating System (ROS)](http://wiki.ros.org) (middleware for robotics)
-- [OpenCV 3] (real-time computer vision)
+- [OpenCV 3.4] (real-time computer vision)
 		http://www.codebind.com/cpp-tutorial/install-opencv-ubuntu-cpp/
-- [video_stream_opencv] (optional: for simulating local video stream)
+		https://www.pyimagesearch.com/2015/12/14/installing-opencv-on-your-raspberry-pi-zero/
+- [Raspicam] https://www.uco.es/investiga/grupos/ava/node/40
+
 
 #### Building
 
 To build from source, clone the latest version from this repository into your catkin workspace and compile the package using
 
 	cd catkin_workspace/src
-	git clone https://github.com/kyjanond/timberbot.git
+	git clone https://github.com/t3ch-support/Digital-Futures-ROS.git
 	cd ../
 	catkin_make
 
+
+## <---- UPDATE FROM HERE DOWN ---->
 
 ## Usage
 
