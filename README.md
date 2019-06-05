@@ -1,10 +1,10 @@
-# HoloCV
+# Digital Futures ROS
 
 ## Overview
 
-HoloCV is a package meant to provide OpenCV localization functionality to the HoloLens in Unity. This is done using the interface provided by kyjanond's Unity-ROSBridge-UWP
+Digital Futures ROS is a computer vision based localization system for the mobile robots being implemented at the Digital Futures Workshop 2019. It also offers a Ros-bridge interface for controlling the robots' movements through Grasshopper environment.
 
-**Keywords:** opencv, hololens, localization
+**Keywords:** opencv, ros, localization, mobile robotics
 
 ### License
 
@@ -14,7 +14,7 @@ The source code is released under (N/A)
 Affiliation: Institute for Computational Design and Construction (ICD) <br />
 Maintainer: Nicolas KK, nkal@mica.edu**
 
-The HoloCV package has been tested under [ROS] Kinetic and Ubuntu 16.04. This is research code, expect that it changes often and any fitness for a particular purpose is disclaimed.
+The HoloCV package has been tested under [ROS] Kinetic and Raspbian Stretch. This is research code, expect that it changes often and any fitness for a particular purpose is disclaimed.
 
 
 ## Installation
