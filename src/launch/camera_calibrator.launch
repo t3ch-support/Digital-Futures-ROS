@@ -1,13 +1,11 @@
 <launch>
-    <node pkg="holo_cv" type="charuco_board_generator" name="charuco_board_generator" output="screen">
+    <node pkg="digital_futures" type="camera_calibrator" name="camera_calibrator" output="screen">
         <param name="dictionary_id" value="0" />
-        <param name="board_marker_length" value ="275" />
-        <param name="board_square_length" value ="350" />
+        <param name="board_marker_length" value ="0.0277" />
+        <param name="board_square_length" value ="0.035" />
         <param name="board_squaresX" value ="5" />
         <param name="board_squaresY" value ="8" />
-        <param name="border_bits" value ="1" />
-        <param name="output_path" value ="$(find holo_cv)/output/charuco_board.jpg" />
-        
+        <param name="output_path" value ="$(find digital_futures)/output/calibration.yaml" />
     </node> 
 </launch>
 

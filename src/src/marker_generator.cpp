@@ -6,16 +6,20 @@
 #include <iostream>
 #include <ctime>
 #include <ros/ros.h>
+#include <sstream>
 
 using namespace cv;
 
 
 int main(int argc, char *argv[]) {
-    ros::init(argc, argv, "charuco_board_generator");
+    ros::init(argc, argv, "marker_generator");
 
     ros::NodeHandle n;
     ros::NodeHandle _nh("~");
 
+    int board_or_single;
+    int single_count;
+    int single_size;
     int board_square_length;
     int board_marker_length;
     int board_squaresX;
@@ -23,6 +27,16 @@ int main(int argc, char *argv[]) {
     int dictionary_id;
     int border_bits;
     std::string out;
+
+
+    _nh.getParam("board_or_single", board_or_single);
+    ROS_INFO_STREAM("Board or Single: " << board_or_single);
+
+    _nh.getParam("single_size", single_size);
+    ROS_INFO_STREAM("Single Size: " << single_size);
+
+    _nh.getParam("single_count", single_count);
+    ROS_INFO_STREAM("Single Count: " << single_count);
 
     _nh.getParam("board_marker_length", board_marker_length);
     ROS_INFO_STREAM("Marker Length: " << board_marker_length);
@@ -55,22 +69,31 @@ int main(int argc, char *argv[]) {
     Size imageSize;
     imageSize.width = board_squaresX * board_square_length + 2 * margins;
     imageSize.height = board_squaresY * board_square_length + 2 * margins;
+    if(board_or_single == 0){
+        Ptr<aruco::CharucoBoard> board = aruco::CharucoBoard::create(board_squaresX, board_squaresY, (float)board_square_length,
+                                                                (float)board_marker_length, dictionary);
 
-    Ptr<aruco::CharucoBoard> board = aruco::CharucoBoard::create(board_squaresX, board_squaresY, (float)board_square_length,
-                                                            (float)board_marker_length, dictionary);
+        // show created board
+        Mat boardImage;
+        board->draw(imageSize, boardImage, margins, border_bits);
 
-    // show created board
-    Mat boardImage;
-    board->draw(imageSize, boardImage, margins, border_bits);
+        imshow("board", boardImage);
+        waitKey(0);
 
-    imshow("board", boardImage);
-    waitKey(0);
+        imwrite(out+"charuco_board.jpg", boardImage);
+    }else{
+        Mat markerImage;
+        for(int i = 0; i<single_count; i++){
+            aruco::drawMarker(dictionary, i, single_size, markerImage, 1);
+            imshow("marker", markerImage);
+            waitKey(0);
 
-    imwrite(out, boardImage);
-
+            std::stringstream ss;
+            ss << out << "marker" << i << ".jpg";
+            std::string outputName = ss.str();
+            ROS_INFO_STREAM(outputName);
+            imwrite(outputName, markerImage);
+        }
+    }
     return 0;
 }
-
-// Manual compile code
-// g++ -std=c++17 main.cpp -o ../bin/charucoBoardGenerator `pkg-config --cflags --libs opencv jsoncpp`
-// ./charucoBoardGenerator "charucoBoard.jpg" -d=0 -w=5 -h=8 -sl=350 -ml=275 si=true

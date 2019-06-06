@@ -1,13 +1,15 @@
 <launch>
- <!-- Temporarily grab stream from webcam, in practice stream will come from Hololens locatable camera using rosbridge -->
-    <include file="$(find video_stream_opencv)/launch/camera.launch" />
-    <node pkg="holo_cv" type="camera_calibrator" name="camera_calibrator" output="screen">
+    <node pkg="digital_futures" type="marker_generator" name="marker_generator" output="screen">
+        <param name="board_or_single" value="1" />
+        <param name="single_count" value="10"/>
+        <param name="single_size" value="200"/>
         <param name="dictionary_id" value="0" />
-        <param name="board_marker_length" value ="0.0277" />
-        <param name="board_square_length" value ="0.035" />
+        <param name="board_marker_length" value ="275" />
+        <param name="board_square_length" value ="350" />
         <param name="board_squaresX" value ="5" />
         <param name="board_squaresY" value ="8" />
-        <param name="output_path" value ="$(find holo_cv)/output/calibration.yaml" />
+        <param name="border_bits" value ="1" />
+        <param name="output_path" value ="$(find digital_futures)/output/" />
         
     </node> 
 </launch>

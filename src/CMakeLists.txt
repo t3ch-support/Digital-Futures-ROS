@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(holo_cv)
+project(digital_futures)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -7,19 +7,19 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+set(raspicam_DIR "/usr/local/lib/cmake")
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   sensor_msgs
   std_msgs
-  cv_bridge
-  image_transport
   visualization_msgs
   geometry_msgs
 )
 find_package(
   OpenCV REQUIRED
 )
+find_package(raspicam REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -111,7 +111,7 @@ find_package(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-   INCLUDE_DIRS include
+#  INCLUDE_DIRS include
 #  LIBRARIES holo_cv
 #  CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs
 #  DEPENDS system_lib
@@ -124,7 +124,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  include
+  #include
   ${catkin_INCLUDE_DIRS}
   ${OPENCV_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -144,7 +144,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(marker_pose_estimator src/marker_pose_estimator.cpp)
-add_executable(charuco_board_generator src/charuco_board_generator.cpp)
+add_executable(marker_generator src/marker_generator.cpp)
 add_executable(camera_calibrator src/camera_calibrator.cpp)
 
 ## Rename C++ executable without prefix
@@ -161,14 +161,17 @@ add_executable(camera_calibrator src/camera_calibrator.cpp)
 target_link_libraries(marker_pose_estimator
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
+  ${raspicam_CV_LIBS}
 )
-target_link_libraries(charuco_board_generator
+target_link_libraries(marker_generator
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
+  ${raspicam_CV_LIBS}
 )
 target_link_libraries(camera_calibrator
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
+  ${raspicam_CV_LIBS}
 )
 
 #############

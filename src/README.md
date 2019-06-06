@@ -4,7 +4,7 @@
 
 Digital Futures ROS is a computer vision based localization system for the mobile robots being implemented at the Digital Futures Workshop 2019. It also offers a Ros-bridge interface for controlling the robots' movements through Grasshopper environment. It is intended for the Raspberry Pi Zero W running Raspbian Stretch.
 
-**Keywords:** opencv, ros, localization, mobile robotics
+**Keywords:** opencv, ros, localization, mobile robotics, rpi
 
 ### License
 
