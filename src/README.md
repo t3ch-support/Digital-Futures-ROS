@@ -48,15 +48,15 @@ To build from source, clone the latest version from this repository into your ca
 
 Run the main node with
 
-	roslaunch holo_cv marker_pose_estimator.launch
+	roslaunch digital_futures marker_pose_estimator.launch
 
-Generate a Charuco Board with
+Generate marker images with
 
-	roslaunch holo_cv charuco_board_generator.launch
+	roslaunch digital_futures marker_generator.launch
 
 Calibrate camera with
 
-	roslaunch holo_cv camera_calibrator.launch
+	roslaunch digital_futures camera_calibrator.launch
 
 ## Config files
 
@@ -67,9 +67,9 @@ Config file
 
 ## Launch files
 
-* **marker_pose_estimator.launch:** launches video_stream_opencv/camera.launch, rviz for marker visualization, and marker detection window
+* **marker_pose_estimator.launch:** launches marker detection node and broadcasts robot id with position
 
-* **charuco_board_generator.launch:** generates a Charuco Board in JPG format for use in calibration of camera and marker detection
+* **marker_generator.launch:** generates a markers (or board) in JPG format for use in calibration of camera and marker detection
 
 * **camera_calibrator.launch:** launches interactive camera calibration window, press c to capture images of charuco board; press esc to generate calibration file to use for pose estimation
 
@@ -78,23 +78,20 @@ Config file
 
 ### marker_pose_estimator
 
-Receives sensor_msgs/Image, converts it to cv::Mat and localizes markers
+Checks image capture for aruco markers and broadcasts marker id, pose of robot, and robot id
 
 
 #### Subscribed Topics
 
-* **`/webcam/image_raw`** ([sensor_msgs/Image])
-
-	Image stream from camera to be localized
-
+None
 
 #### Published Topics
 
-* **`/holocv/output_video`** ([sensor_msgs/Image])
+* **`/digital_futures/robot_id/marker`** ([std_msgs/Int64.msg])
 
-	Processed image with markers detected
+	Marker ID
 
-* **`/holocv/markers`** ([geometry_msgs/PoseArray])
+* **`/digital_futures/robot_id/pose`** ([geometry_msgs/PoseStamped.msg])
 
 	Array of markers as position and quaternion orientations
 
@@ -141,12 +138,22 @@ Receives sensor_msgs/Image, converts it to cv::Mat and localizes markers
 
 ### charuco_board_generator
 
-Used for generating a Charuco Board (JPG) of markers for camera calibration and/or pose estimation
+Used for generating a marker images (JPG) for camera calibration and/or pose estimation
 
 
 #### Parameters
 
+* **`board_or_single`** (int)
 
+	Choose whether to generate a charuco board or a set of single markers (board = 0, singles = 1)
+
+* **`single_count`** (int)
+
+	Number of single markers to generate
+
+* **`single_size`** (int)
+
+	Size of marker to generate in pixels
 
 * **`dictionary_id`** (float)
 
@@ -186,9 +193,7 @@ Interactive camera calibration tool
 
 #### Subscribed Topics
 
-* **`/webcam/image_raw`** ([sensor_msgs/Image])
-
-	Image stream from camera to be calibrated
+None
 
 
 #### Parameters
