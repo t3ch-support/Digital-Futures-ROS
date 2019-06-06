@@ -41,8 +41,6 @@ To build from source, clone the latest version from this repository into your ca
 	catkin_make
 
 
-## <---- UPDATE FROM HERE DOWN ---->
-
 ## Usage
 
 
@@ -138,7 +136,7 @@ None
 
 ### charuco_board_generator
 
-Used for generating a marker images (JPG) for camera calibration and/or pose estimation
+Used for generating marker images (JPG) for camera calibration and/or pose estimation
 
 
 #### Parameters
