@@ -7,6 +7,15 @@
 #include <sensor_msgs/image_encodings.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <geometry_msgs/PoseArray.h>
+#include <raspicam/raspicam_cv.h>
+
+
+#include <geometry_msgs/PoseStamped.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <geometry_msgs/TransformStamped.h>
+
 
 static const std::string OPENCV_WINDOW = "Processed Image";
 
@@ -50,224 +59,309 @@ void getQuaternion(cv::Mat R, double Q[])
     }
 }
 
-// class ImageProcessor
-// {
-//   ros::NodeHandle nh_;
-//   image_transport::ImageTransport it_;
-//   image_transport::Subscriber image_sub_;
-//   image_transport::Publisher image_pub_;
-//   ros::Publisher vis_markers_pub_;
-//   std::string camera_calibration;
-//   float markerLength;
-//   cv::Ptr<cv::aruco::DetectorParameters> detectorParams;
-//   cv::Ptr<cv::aruco::Dictionary> dictionary;
-//   cv::Mat camMatrix, distCoeffs;
+void setCameraParams (raspicam::RaspiCam_Cv &Camera ) {
+    Camera.set ( cv::CAP_PROP_FRAME_WIDTH,  640);
+    Camera.set ( cv::CAP_PROP_FRAME_HEIGHT, 480);
+    Camera.set ( cv::CAP_PROP_BRIGHTNESS, 50);
+    Camera.set ( cv::CAP_PROP_CONTRAST, 50);
+    Camera.set ( cv::CAP_PROP_SATURATION, 50);
+    Camera.set ( cv::CAP_PROP_GAIN, 50);
+    Camera.set ( cv::CAP_PROP_FPS, 0);
+    Camera.set ( cv::CAP_PROP_FORMAT, CV_8UC1 );
+}
+
+class ImageProcessor
+{
+  ros::NodeHandle nh_;
+  raspicam::RaspiCam_Cv Camera;
+  ros::Publisher vis_markers_pub_;
+  ros::Publisher markers_pub_pose_array;
+
+  std::string camera_calibration;
+  float markerLength;
+  cv::Ptr<cv::aruco::DetectorParameters> detectorParams;
+  cv::Ptr<cv::aruco::Dictionary> dictionary;
+  cv::Mat camMatrix, distCoeffs;
   
-//   bool charuco_board = false;
-//   cv::Ptr<cv::aruco::Board> board;
-//   cv::Ptr<cv::aruco::CharucoBoard> charucoboard;
-//   float axisLength;
+  bool charuco_board = false;
+  cv::Ptr<cv::aruco::Board> board;
+  cv::Ptr<cv::aruco::CharucoBoard> charucoboard;
+  float axisLength;
 
-//   public:
-//     ImageProcessor()
-//       : it_(nh_)
-//     {
-//       ros::NodeHandle _nh("~");
-//       image_sub_ = it_.subscribe("/webcam/image_raw", 1, &ImageProcessor::convertImage, this);
-//       image_pub_ = it_.advertise("/holocv/output_video", 1);
-//       vis_markers_pub_ = nh_.advertise<geometry_msgs::PoseArray> ("/holocv/markers", 10);
-      
-//       cv::namedWindow(OPENCV_WINDOW);
+  float board_square_length;
+  float board_marker_length;
+  int board_squaresX;
+  int board_squaresY;
 
-//       _nh.getParam("camera_calibration", camera_calibration);
-//       ROS_INFO_STREAM("HoloCV: Provided camera_calibration: '" << camera_calibration << "'");
-//       _nh.getParam("marker_length", markerLength);
-//       ROS_INFO_STREAM("HoloCV: Marker length is: " << markerLength);
-//       _nh.getParam("charuco_board", charuco_board);
-//       ROS_INFO_STREAM("CharucoBoard Detection: " << charuco_board);
+  geometry_msgs::PoseStamped lastPose;
 
-//       int dictionary_id;
-//       _nh.getParam("dictionary_id", dictionary_id);
-//       int corner_refinement_method;
-//       _nh.getParam("corner_refinement_method", corner_refinement_method);
-
-//       // Load calibration
-//       detectorParams = cv::aruco::DetectorParameters::create();
-//       detectorParams->cornerRefinementMethod = corner_refinement_method;
-//       dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionary_id));
-//       bool readOk = readCameraParameters(camera_calibration, camMatrix, distCoeffs);
-//       if(!readOk) {
-//           ROS_ERROR("Invalid camera file");
-//       }
-
-//       if(charuco_board){
-//         float board_square_length;
-//         float board_marker_length;
-//         int board_squaresX;
-//         int board_squaresY;
-//         _nh.getParam("board_marker_length", board_square_length);
-//         _nh.getParam("board_square_length", board_square_length);
-//         _nh.getParam("board_squaresX", board_squaresX);
-//         _nh.getParam("board_squaresY", board_squaresY);
-
-//         axisLength = 0.5f * ((float)min(board_squaresX, board_squaresY) * (board_square_length));
-//         charucoboard = cv::aruco::CharucoBoard::create(board_squaresX, board_squaresY, board_square_length, board_marker_length, dictionary);
-//         board = charucoboard.staticCast<cv::aruco::Board>();
-//       }
-//     }
-
-//     ~ImageProcessor()
-//     {
-//       cv::destroyWindow(OPENCV_WINDOW);
-//     }
-
-//     void convertImage(const sensor_msgs::ImageConstPtr& msg)
-//     {
-//       cv_bridge::CvImagePtr cv_ptr;
-//       try
-//       {
-//         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-//       }
-//       catch (cv_bridge::Exception& e)
-//       {
-//         ROS_ERROR("cv_bridge exception: %s", e.what());
-//         return;
-//       }
-//       // Detect markers
-//       if(charuco_board){
-//         detectBoard(cv_ptr);
-//       }else{
-//         bool success = detectMarkers(cv_ptr);
-//       }
-      
-//     }
-
-//     void detectBoard(cv_bridge::CvImagePtr incomingImage){
-//       // Detect markers and estimate pose
-//       vector< int > ids, charucoIds;
-//       vector< vector< cv::Point2f > > corners, rejected;
-//       cv::Vec3d rvecs, tvecs;
-//       vector< cv::Point2f > charucoCorners;
-
-//       cv::aruco::detectMarkers(incomingImage->image, dictionary, corners, ids, detectorParams, rejected);
-
-//       cv::aruco::refineDetectedMarkers(incomingImage->image, board, corners, ids, rejected,
-//                                          camMatrix, distCoeffs);
-
-//       int interpolatedCorners = 0;
-//         if(ids.size() > 0)
-//             interpolatedCorners =
-//                 cv::aruco::interpolateCornersCharuco(corners, ids, incomingImage->image, charucoboard,
-//                                                  charucoCorners, charucoIds, camMatrix, distCoeffs);
-//       bool validPose = false;
-//         if(camMatrix.total() != 0)
-//             validPose = cv::aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard,
-//                                                         camMatrix, distCoeffs, rvecs, tvecs);
-
-
-//       // draw results
-//       if(ids.size() > 0){
-//         cv::aruco::drawDetectedMarkers(incomingImage->image, corners, ids);
-//       }
-//       if(interpolatedCorners > 0) {
-//             cv::Scalar color;
-//             color = cv::Scalar(255, 0, 0);
-//             cv::aruco::drawDetectedCornersCharuco(incomingImage->image, charucoCorners, charucoIds, color);
-//         }
-//       if(validPose)
-//             cv::aruco::drawAxis(incomingImage->image, camMatrix, distCoeffs, rvecs, tvecs, axisLength);        
-      
-
-//       geometry_msgs::Pose pose;
-//       // Assign translation vectors to pose
-//       pose.position.x = tvecs[0];
-//       pose.position.y = tvecs[1];
-//       pose.position.z = tvecs[2];
-
-//       cv::Mat rot_cv(3, 3, CV_32FC1);
-//       cv::Rodrigues(rvecs, rot_cv);
-//       double Q[4];
-//       getQuaternion(rot_cv, Q);
-      
-//       pose.orientation.x = Q[0];
-//       pose.orientation.y = Q[1];
-//       pose.orientation.z = Q[2];
-//       pose.orientation.w = Q[3];
-      
-//       geometry_msgs::PoseArray poseArray;
-//       poseArray.header.frame_id = "main";
-//       poseArray.header.stamp = ros::Time::now();
-//       poseArray.poses.push_back(pose);
-//       vis_markers_pub_.publish(poseArray);
-
-//       displayImage(incomingImage);
-//     }
-
-//     bool detectMarkers(cv_bridge::CvImagePtr incomingImage){
-
-
-//       // Detect markers and estimate pose
-//       vector< int > ids;
-//       vector< vector< cv::Point2f > > corners, rejected;
-//       vector< cv::Vec3d > rvecs, tvecs;
-
-//       cv::aruco::detectMarkers(incomingImage->image, dictionary, corners, ids, detectorParams, rejected);
-//       if(ids.size() > 0){
-//         cv::aruco::estimatePoseSingleMarkers(corners, markerLength, camMatrix, distCoeffs, rvecs, tvecs);
-//         cv::aruco::drawDetectedMarkers(incomingImage->image, corners, ids);
-//         for(unsigned int i = 0; i < ids.size(); i++){
-//           cv::aruco::drawAxis(incomingImage->image, camMatrix, distCoeffs, rvecs[i], tvecs[i], markerLength * 0.5f);
-//         }
-//       }
-
-//       std::map<int, geometry_msgs::Pose> idPoseMap;
-//       for(int i = 0; i<ids.size(); i++){
-
-//         geometry_msgs::Pose pose;
-//         // Assign translation vectors to pose
-//         pose.position.x = tvecs[i][0];
-//         pose.position.y = tvecs[i][1];
-//         pose.position.z = tvecs[i][2];
-
-//         cv::Mat rot_cv(3, 3, CV_32FC1);
-//         cv::Rodrigues(rvecs[i], rot_cv);
-//         double Q[4];
-//         getQuaternion(rot_cv, Q);
+  public:
+    ImageProcessor()
+    {
+        ros::NodeHandle _nh("~");
+        vis_markers_pub_ = nh_.advertise<geometry_msgs::PoseStamped> ("/digital_futures/markers", 10);
+        markers_pub_pose_array = nh_.advertise<geometry_msgs::PoseArray> ("/digital_futures/markerArray", 10);
         
-//         pose.orientation.x = Q[0];
-//         pose.orientation.y = Q[1];
-//         pose.orientation.z = Q[2];
-//         pose.orientation.w = Q[3];
+        cv::namedWindow(OPENCV_WINDOW);
+        setCameraParams(Camera);
+        if ( !Camera.open() ) {
+            ROS_ERROR("Error opening camera");
+        }else{
+        ROS_INFO_STREAM("Connected to camera =" << Camera.getId());
+        }
 
-//         idPoseMap.insert(std::make_pair(ids[i], pose));
-//       }
+        _nh.getParam("camera_calibration", camera_calibration);
+        ROS_INFO_STREAM("HoloCV: Provided camera_calibration: '" << camera_calibration << "'");
+        _nh.getParam("marker_length", markerLength);
+        ROS_INFO_STREAM("HoloCV: Marker length is: " << markerLength);
+        _nh.getParam("charuco_board", charuco_board);
+        ROS_INFO_STREAM("CharucoBoard Detection: " << charuco_board);
+
+        int dictionary_id;
+        _nh.getParam("dictionary_id", dictionary_id);
+        ROS_INFO_STREAM("Dictionrary ID: " << dictionary_id);
+        int corner_refinement_method;
+        _nh.getParam("corner_refinement_method", corner_refinement_method);
+        ROS_INFO_STREAM("Corner Refinement Method: " << corner_refinement_method);
 
 
-//       std::map<int, geometry_msgs::Pose>::iterator it = idPoseMap.begin();
-//       geometry_msgs::PoseArray poseArray;
-//       poseArray.header.frame_id = "main";
-//       poseArray.header.stamp = ros::Time::now();
-//       while(it != idPoseMap.end()){
-//         poseArray.poses.push_back(it->second);
-//         it++;
-//       }
-//       vis_markers_pub_.publish(poseArray);
 
-//       displayImage(incomingImage);
-//     }
 
-//     void displayImage(cv_bridge::CvImagePtr processedImage){
-//       cv::imshow(OPENCV_WINDOW, processedImage->image);
-//       cv::waitKey(3);
-//       // Output modified video stream as ROS sensor_msgs::Image
-//       image_pub_.publish(processedImage->toImageMsg());
-//     }
-// };
+        // Load calibration
+        //   detectorParams = cv::aruco::DetectorParameters::create();
+        try{
+            detectorParams = cv::aruco::DetectorParameters::create();
+        }catch( cv::Exception& e ){
+            const char* err_msg = e.what();
+            ROS_INFO_STREAM("Detector Params Exception caught: " << err_msg);
+        }
+        detectorParams->cornerRefinementMethod = corner_refinement_method;
+        
+        dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionary_id));
+        bool readOk = readCameraParameters(camera_calibration, camMatrix, distCoeffs);
+        if(!readOk) {
+            ROS_ERROR("Invalid camera file");
+        }
+
+        if(charuco_board){
+            _nh.getParam("board_marker_length", board_marker_length);
+            _nh.getParam("board_square_length", board_square_length);
+            _nh.getParam("board_squaresX", board_squaresX);
+            _nh.getParam("board_squaresY", board_squaresY);
+
+            axisLength = 0.5f * ((float)min(board_squaresX, board_squaresY) * (board_square_length));
+            if(board_squaresX > 1 && board_squaresY > 1 && board_marker_length > 0 && board_square_length > board_marker_length){
+            try{
+                charucoboard = cv::aruco::CharucoBoard::create(board_squaresX, board_squaresY, board_square_length, board_marker_length, dictionary);
+            }catch(cv::Exception& e){
+                const char* err_msg = e.what();
+                ROS_INFO_STREAM("CharucoBoard Exception caught: " << err_msg);
+            }
+                board = charucoboard.staticCast<cv::aruco::Board>();
+            }else{
+                ROS_INFO_STREAM("CharucoBoard Exception precaught ->" );
+                ROS_INFO_STREAM("board_squaresX " <<  board_squaresX);
+                ROS_INFO_STREAM("board_squaresY " << board_squaresY );
+                ROS_INFO_STREAM("board_marker_length " << board_marker_length);
+                ROS_INFO_STREAM("board_square_length " << board_square_length);
+            }
+            detectBoard();
+        }else{
+            detectMarkers();
+        }
+    }
+
+    ~ImageProcessor()
+    {
+      cv::destroyWindow(OPENCV_WINDOW);
+    }
+
+
+    void detectBoard(){
+        ROS_INFO_STREAM("Starting board detection");
+        while(Camera.grab()){       
+            cv::Mat image;
+            Camera.retrieve(image);
+            // Detect markers and estimate pose
+            vector< int > ids, charucoIds;
+            vector< vector< cv::Point2f > > corners, rejected;
+            cv::Vec3d rvecs, tvecs;
+            vector< cv::Point2f > charucoCorners;
+
+            cv::aruco::detectMarkers(image, dictionary, corners, ids, detectorParams, rejected);
+
+            cv::aruco::refineDetectedMarkers(image, board, corners, ids, rejected,
+                                                camMatrix, distCoeffs);
+
+            int interpolatedCorners = 0;
+                if(ids.size() > 0)
+                    interpolatedCorners =
+                        cv::aruco::interpolateCornersCharuco(corners, ids, image, charucoboard,
+                                                        charucoCorners, charucoIds, camMatrix, distCoeffs);
+            bool validPose = false;
+                if(camMatrix.total() != 0)
+                    validPose = cv::aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard,
+                                                                camMatrix, distCoeffs, rvecs, tvecs);
+
+
+            // draw results
+            if(ids.size() > 0){
+                cv::aruco::drawDetectedMarkers(image, corners, ids);
+            }
+            if(interpolatedCorners > 0) {
+                    cv::Scalar color;
+                    color = cv::Scalar(255, 0, 0);
+                    cv::aruco::drawDetectedCornersCharuco(image, charucoCorners, charucoIds, color);
+                }
+            if(validPose){
+
+                    cv::aruco::drawAxis(image, camMatrix, distCoeffs, rvecs, tvecs, axisLength);
+                    geometry_msgs::PoseStamped pose;
+                    // Assign translation vectors to pose
+                    pose.pose.position.x = tvecs[0];
+                    pose.pose.position.y = tvecs[1];
+                    pose.pose.position.z = tvecs[2];
+
+                    cv::Mat rot_cv(3, 3, CV_32FC1);
+                    cv::Rodrigues(rvecs, rot_cv);
+                    
+                    double Q[4];
+                    getQuaternion(rot_cv, Q);
+                    
+                    pose.pose.orientation.x = Q[0];
+                    pose.pose.orientation.y = Q[1];
+                    pose.pose.orientation.z = Q[2];
+                    pose.pose.orientation.w = Q[3];
+                    
+                    pose.header.frame_id = "aruco_camera";
+                    pose.header.stamp = ros::Time::now();
+                    // If pose array use this
+                    // geometry_msgs::PoseArray poseArray;
+                    // poseArray.header.frame_id = "/holo_cam/pose";
+                    // poseArray.header.stamp = ros::Time::now();
+                    // poseArray.poses.push_back(pose);
+                    vis_markers_pub_.publish(pose);
+                    lastPose = pose;
+
+                    // Publish pose as transform
+                    static tf2_ros::TransformBroadcaster br;
+                    geometry_msgs::TransformStamped transformStamped;
+
+                    transformStamped.header.stamp = ros::Time::now();
+                    transformStamped.header.frame_id = "aruco_camera";
+                    transformStamped.child_frame_id = "marker_frame";
+                    transformStamped.transform.translation.x = pose.pose.position.x;
+                    transformStamped.transform.translation.y = pose.pose.position.y;
+                    transformStamped.transform.translation.z = pose.pose.position.z;
+                    tf2::Quaternion q;
+                    q.setX(pose.pose.orientation.x);
+                    q.setY(pose.pose.orientation.y);
+                    q.setZ(pose.pose.orientation.z);
+                    q.setW(pose.pose.orientation.w);
+                    transformStamped.transform.rotation.x = q.x();
+                    transformStamped.transform.rotation.y = q.y();
+                    transformStamped.transform.rotation.z = q.z();
+                    transformStamped.transform.rotation.w = q.w();
+
+                    br.sendTransform(transformStamped);        
+            }
+            // geometry_msgs::Pose pose;
+            // // Assign translation vectors to pose
+            // pose.position.x = tvecs[0];
+            // pose.position.y = tvecs[1];
+            // pose.position.z = tvecs[2];
+
+            // cv::Mat rot_cv(3, 3, CV_32FC1);
+            // cv::Rodrigues(rvecs, rot_cv);
+            // double Q[4];
+            // getQuaternion(rot_cv, Q);
+            
+            // pose.orientation.x = Q[0];
+            // pose.orientation.y = Q[1];
+            // pose.orientation.z = Q[2];
+            // pose.orientation.w = Q[3];
+            
+            // geometry_msgs::PoseArray poseArray;
+            // poseArray.header.frame_id = "main";
+            // poseArray.header.stamp = ros::Time::now();
+            // poseArray.poses.push_back(pose);
+            // vis_markers_pub_.publish(poseArray);
+
+            displayImage(image);
+        }
+        ROS_INFO_STREAM("Ended");
+
+    }
+
+    bool detectMarkers(){
+        while(Camera.grab()){       
+            cv::Mat image;
+            Camera.retrieve(image);
+
+            // Detect markers and estimate pose
+            vector< int > ids;
+            vector< vector< cv::Point2f > > corners, rejected;
+            vector< cv::Vec3d > rvecs, tvecs;
+
+            cv::aruco::detectMarkers(image, dictionary, corners, ids, detectorParams, rejected);
+            if(ids.size() > 0){
+                cv::aruco::estimatePoseSingleMarkers(corners, markerLength, camMatrix, distCoeffs, rvecs, tvecs);
+                cv::aruco::drawDetectedMarkers(image, corners, ids);
+                for(unsigned int i = 0; i < ids.size(); i++){
+                cv::aruco::drawAxis(image, camMatrix, distCoeffs, rvecs[i], tvecs[i], markerLength * 0.5f);
+                }
+            }
+
+            std::map<int, geometry_msgs::Pose> idPoseMap;
+            for(int i = 0; i<ids.size(); i++){
+
+                geometry_msgs::Pose pose;
+                // Assign translation vectors to pose
+                pose.position.x = tvecs[i][0];
+                pose.position.y = tvecs[i][1];
+                pose.position.z = tvecs[i][2];
+
+                cv::Mat rot_cv(3, 3, CV_32FC1);
+                cv::Rodrigues(rvecs[i], rot_cv);
+                double Q[4];
+                getQuaternion(rot_cv, Q);
+                
+                pose.orientation.x = Q[0];
+                pose.orientation.y = Q[1];
+                pose.orientation.z = Q[2];
+                pose.orientation.w = Q[3];
+
+                idPoseMap.insert(std::make_pair(ids[i], pose));
+            }
+
+
+            std::map<int, geometry_msgs::Pose>::iterator it = idPoseMap.begin();
+            geometry_msgs::PoseArray poseArray;
+            poseArray.header.frame_id = "main";
+            poseArray.header.stamp = ros::Time::now();
+            while(it != idPoseMap.end()){
+                poseArray.poses.push_back(it->second);
+                it++;
+            }
+            markers_pub_pose_array.publish(poseArray);
+
+            displayImage(image);
+        }
+    }
+
+    void displayImage(cv::Mat processedImage){
+        ROS_INFO_STREAM("Display Image");
+      cv::imshow(OPENCV_WINDOW, processedImage);
+      cv::waitKey(3);
+      // Output modified video stream as ROS sensor_msgs::Image
+      //image_pub_.publish(processedImage->toImageMsg());
+    }
+};
 
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "digital_futures");
-  //ImageProcessor ic;
+  ImageProcessor ic;
   ros::spin();
   return 0;
 }

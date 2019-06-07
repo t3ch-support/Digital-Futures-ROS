@@ -1,19 +1,15 @@
 <launch>
-    <!-- Temporarily grab stream from webcam, in practice stream will come from Hololens locatable camera using rosbridge -->
-    <include file="$(find video_stream_opencv)/launch/camera.launch" />
-    
-    <node pkg="holo_cv" type="marker_pose_estimator" name="marker_pose_estimator" output="screen">
-        <param name="camera_calibration" value="$(find holo_cv)/config/calibration.yaml" />
+    <node pkg="digital_futures" type="marker_pose_estimator" name="marker_pose_estimator" output="screen">
+        <param name="camera_calibration" value="$(find digital_futures)/config/calibration.yaml" />
         <param name="dictionary_id" value="0" />
         <param name="corner_refinement_method" value="1" />
         <param name="marker_length" value="0.032" />
-        <param name="charuco_board" value ="true" />
-        <param name="board_marker_length" value ="0.0277" />
+        <param name="charuco_board" value ="false" />
         <param name="board_square_length" value ="0.035" />
+        <param name="board_marker_length" value ="0.0277" />
         <param name="board_squaresX" value ="5" />
         <param name="board_squaresY" value ="8" />
     </node> 
-    <node name="rviz" pkg="rviz" type="rviz" />
 </launch>
 
 <!-- 

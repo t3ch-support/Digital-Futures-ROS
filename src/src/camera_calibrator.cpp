@@ -172,7 +172,7 @@ class CameraCalibrator
     void calibrateCamera(){
         bool configDone = false;
         while(Camera.grab() && !configDone){
-            Mat image, imageCopy;
+            Mat image;
             Camera.retrieve(image);
             vector< int > ids;
             vector< vector< cv::Point2f > > corners, rejected;

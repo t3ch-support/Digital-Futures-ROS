@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 project(digital_futures)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++11 -Wno-psabi)
+## -Wno-psabi supresses GCC 7.1 warnings
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -15,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   visualization_msgs
   geometry_msgs
+  tf2_ros
 )
 find_package(
   OpenCV REQUIRED
@@ -23,6 +25,7 @@ find_package(raspicam REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
