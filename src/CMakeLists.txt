@@ -9,6 +9,7 @@ add_compile_options(-std=c++11 -Wno-psabi)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 set(raspicam_DIR "/usr/local/lib/cmake")
+set(CMAKE_MODULE_PATH "/usr/local/lib/cmake/")
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
@@ -22,7 +23,8 @@ find_package(
   OpenCV REQUIRED
 )
 find_package(raspicam REQUIRED)
-
+find_package(pigpio REQUIRED)
+find_package(Threads REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -149,6 +151,8 @@ include_directories(
 add_executable(marker_pose_estimator src/marker_pose_estimator.cpp)
 add_executable(marker_generator src/marker_generator.cpp)
 add_executable(camera_calibrator src/camera_calibrator.cpp)
+add_executable(motor_control src/motor_control.cpp)
+
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -176,6 +180,12 @@ target_link_libraries(camera_calibrator
   ${OpenCV_LIBS}
   ${raspicam_CV_LIBS}
 )
+target_link_libraries(motor_control
+  ${catkin_LIBRARIES}
+  pigpio 
+  ${CMAKE_THREAD_LIBS_INIT}
+)
+
 
 #############
 ## Install ##

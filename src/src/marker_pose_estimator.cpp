@@ -121,8 +121,8 @@ class ImageProcessor
         ROS_INFO_STREAM("Provided camera_calibration: '" << camera_calibration << "'");
         _nh.getParam("marker_length", markerLength);
         ROS_INFO_STREAM("Marker length is: " << markerLength);
-        _nh.getParam("charuco_board", charuco_board);
-        ROS_INFO_STREAM("CharucoBoard Detection: " << charuco_board);
+        // _nh.getParam("charuco_board", charuco_board);
+        // ROS_INFO_STREAM("CharucoBoard Detection: " << charuco_board);
         _nh.getParam("dictionary_id", dictionary_id);
         ROS_INFO_STREAM("Dictionrary ID: " << dictionary_id);
         _nh.getParam("corner_refinement_method", corner_refinement_method);
@@ -152,37 +152,17 @@ class ImageProcessor
         }
         detectorParams->cornerRefinementMethod = corner_refinement_method;
         
+        // Load dictionary
         dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionary_id));
+
+        // Load Camera Parameters
         bool readOk = readCameraParameters(camera_calibration, camMatrix, distCoeffs);
         if(!readOk) {
             ROS_ERROR("Invalid camera file");
         }
-        if(charuco_board){
-            _nh.getParam("board_marker_length", board_marker_length);
-            _nh.getParam("board_square_length", board_square_length);
-            _nh.getParam("board_squaresX", board_squaresX);
-            _nh.getParam("board_squaresY", board_squaresY);
 
-            axisLength = 0.5f * ((float)min(board_squaresX, board_squaresY) * (board_square_length));
-            if(board_squaresX > 1 && board_squaresY > 1 && board_marker_length > 0 && board_square_length > board_marker_length){
-            try{
-                charucoboard = cv::aruco::CharucoBoard::create(board_squaresX, board_squaresY, board_square_length, board_marker_length, dictionary);
-            }catch(cv::Exception& e){
-                const char* err_msg = e.what();
-                ROS_INFO_STREAM("CharucoBoard Exception caught: " << err_msg);
-            }
-                board = charucoboard.staticCast<cv::aruco::Board>();
-            }else{
-                ROS_INFO_STREAM("CharucoBoard Exception precaught ->" );
-                ROS_INFO_STREAM("board_squaresX " <<  board_squaresX);
-                ROS_INFO_STREAM("board_squaresY " << board_squaresY );
-                ROS_INFO_STREAM("board_marker_length " << board_marker_length);
-                ROS_INFO_STREAM("board_square_length " << board_square_length);
-            }
-            detectBoard();
-        }else{
-            detectMarkers();
-        }
+        // Start detection loop
+        detectMarkers();
     }
 
     ~ImageProcessor()
