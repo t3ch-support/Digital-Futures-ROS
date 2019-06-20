@@ -9,6 +9,7 @@
         <param name="board_marker_length" value ="0.0277" />
         <param name="board_squaresX" value ="5" />
         <param name="board_squaresY" value ="8" />
+        <param name="robot_id" value="robot_1" />
     </node> 
 </launch>
 

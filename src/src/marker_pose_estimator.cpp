@@ -1,20 +1,32 @@
+// Standard
+#include <string>
+
+//ROS
 #include <ros/ros.h>
+
+// OpenCV
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco.hpp>
 #include <opencv2/aruco/charuco.hpp>
+
+// Camera
+#include <raspicam/raspicam_cv.h>
+
+// ROS Msgs
 #include <sensor_msgs/image_encodings.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <geometry_msgs/PoseArray.h>
-#include <raspicam/raspicam_cv.h>
-
-
+#include <std_msgs/Int16.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
+
+// ROS Positioning
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2_ros/transform_broadcaster.h>
-#include <geometry_msgs/TransformStamped.h>
+
 
 
 static const std::string OPENCV_WINDOW = "Processed Image";
@@ -30,7 +42,6 @@ static bool readCameraParameters(string filename, cv::Mat &camMatrix, cv::Mat &d
     fs["distortion_coefficients"] >> distCoeffs;
     return true;
 }
-
 void getQuaternion(cv::Mat R, double Q[])
 {
     double trace = R.at<double>(0,0) + R.at<double>(1,1) + R.at<double>(2,2);
@@ -58,7 +69,6 @@ void getQuaternion(cv::Mat R, double Q[])
         Q[k] = (R.at<double>(k,i) + R.at<double>(i,k)) * s;
     }
 }
-
 void setCameraParams (raspicam::RaspiCam_Cv &Camera ) {
     Camera.set ( cv::CAP_PROP_FRAME_WIDTH,  640);
     Camera.set ( cv::CAP_PROP_FRAME_HEIGHT, 480);
@@ -72,37 +82,60 @@ void setCameraParams (raspicam::RaspiCam_Cv &Camera ) {
 
 class ImageProcessor
 {
-  ros::NodeHandle nh_;
-  raspicam::RaspiCam_Cv Camera;
-  ros::Publisher vis_markers_pub_;
-  ros::Publisher markers_pub_pose_array;
+    ros::NodeHandle nh_;
+    raspicam::RaspiCam_Cv Camera;
+    ros::Publisher pose_pub;
+    ros::Publisher pose_array_pub;
+    ros::Publisher id_pub;
 
-  std::string camera_calibration;
-  float markerLength;
-  cv::Ptr<cv::aruco::DetectorParameters> detectorParams;
-  cv::Ptr<cv::aruco::Dictionary> dictionary;
-  cv::Mat camMatrix, distCoeffs;
-  
-  bool charuco_board = false;
-  cv::Ptr<cv::aruco::Board> board;
-  cv::Ptr<cv::aruco::CharucoBoard> charucoboard;
-  float axisLength;
+    std::string camera_calibration;
+    float markerLength;
+    cv::Ptr<cv::aruco::DetectorParameters> detectorParams;
+    cv::Ptr<cv::aruco::Dictionary> dictionary;
+    cv::Mat camMatrix, distCoeffs;
 
-  float board_square_length;
-  float board_marker_length;
-  int board_squaresX;
-  int board_squaresY;
+    bool charuco_board = false;
+    cv::Ptr<cv::aruco::Board> board;
+    cv::Ptr<cv::aruco::CharucoBoard> charucoboard;
+    float axisLength;
+    int dictionary_id;
+    float board_square_length;
+    float board_marker_length;
+    int board_squaresX;
+    int board_squaresY;
+    int corner_refinement_method;
 
-  geometry_msgs::PoseStamped lastPose;
+    std::string robot_id;
 
-  public:
+    geometry_msgs::PoseStamped lastPose;
+
+    public:
     ImageProcessor()
     {
         ros::NodeHandle _nh("~");
-        vis_markers_pub_ = nh_.advertise<geometry_msgs::PoseStamped> ("/digital_futures/markers", 10);
-        markers_pub_pose_array = nh_.advertise<geometry_msgs::PoseArray> ("/digital_futures/markerArray", 10);
         
-        cv::namedWindow(OPENCV_WINDOW);
+        // Load Params from launch file
+        _nh.getParam("robot_id", robot_id);
+        ROS_INFO_STREAM("Robot ID: '" << robot_id);
+        _nh.getParam("camera_calibration", camera_calibration);
+        ROS_INFO_STREAM("Provided camera_calibration: '" << camera_calibration << "'");
+        _nh.getParam("marker_length", markerLength);
+        ROS_INFO_STREAM("Marker length is: " << markerLength);
+        _nh.getParam("charuco_board", charuco_board);
+        ROS_INFO_STREAM("CharucoBoard Detection: " << charuco_board);
+        _nh.getParam("dictionary_id", dictionary_id);
+        ROS_INFO_STREAM("Dictionrary ID: " << dictionary_id);
+        _nh.getParam("corner_refinement_method", corner_refinement_method);
+        ROS_INFO_STREAM("Corner Refinement Method: " << corner_refinement_method);
+
+        // Publishers
+        pose_pub = nh_.advertise<geometry_msgs::PoseStamped> ("/digital_futures/"+robot_id+"/robot_pose", 10);
+        pose_array_pub = nh_.advertise<geometry_msgs::PoseArray> ("/digital_futures/"+robot_id+"/marker_array", 10);
+        id_pub = nh_.advertise<std_msgs::Int16>("/digital_futures/"+robot_id+"/marker_id", 1);
+
+        //cv::namedWindow(OPENCV_WINDOW);
+
+        // Initialize Camera
         setCameraParams(Camera);
         if ( !Camera.open() ) {
             ROS_ERROR("Error opening camera");
@@ -110,25 +143,7 @@ class ImageProcessor
         ROS_INFO_STREAM("Connected to camera =" << Camera.getId());
         }
 
-        _nh.getParam("camera_calibration", camera_calibration);
-        ROS_INFO_STREAM("HoloCV: Provided camera_calibration: '" << camera_calibration << "'");
-        _nh.getParam("marker_length", markerLength);
-        ROS_INFO_STREAM("HoloCV: Marker length is: " << markerLength);
-        _nh.getParam("charuco_board", charuco_board);
-        ROS_INFO_STREAM("CharucoBoard Detection: " << charuco_board);
-
-        int dictionary_id;
-        _nh.getParam("dictionary_id", dictionary_id);
-        ROS_INFO_STREAM("Dictionrary ID: " << dictionary_id);
-        int corner_refinement_method;
-        _nh.getParam("corner_refinement_method", corner_refinement_method);
-        ROS_INFO_STREAM("Corner Refinement Method: " << corner_refinement_method);
-
-
-
-
         // Load calibration
-        //   detectorParams = cv::aruco::DetectorParameters::create();
         try{
             detectorParams = cv::aruco::DetectorParameters::create();
         }catch( cv::Exception& e ){
@@ -142,7 +157,6 @@ class ImageProcessor
         if(!readOk) {
             ROS_ERROR("Invalid camera file");
         }
-
         if(charuco_board){
             _nh.getParam("board_marker_length", board_marker_length);
             _nh.getParam("board_square_length", board_square_length);
@@ -175,7 +189,6 @@ class ImageProcessor
     {
       cv::destroyWindow(OPENCV_WINDOW);
     }
-
 
     void detectBoard(){
         ROS_INFO_STREAM("Starting board detection");
@@ -240,7 +253,7 @@ class ImageProcessor
                     // poseArray.header.frame_id = "/holo_cam/pose";
                     // poseArray.header.stamp = ros::Time::now();
                     // poseArray.poses.push_back(pose);
-                    vis_markers_pub_.publish(pose);
+                    pose_pub.publish(pose);
                     lastPose = pose;
 
                     // Publish pose as transform
@@ -285,7 +298,7 @@ class ImageProcessor
             // poseArray.header.frame_id = "main";
             // poseArray.header.stamp = ros::Time::now();
             // poseArray.poses.push_back(pose);
-            // vis_markers_pub_.publish(poseArray);
+            // pose_pub.publish(poseArray);
 
             displayImage(image);
         }
@@ -308,7 +321,10 @@ class ImageProcessor
                 cv::aruco::estimatePoseSingleMarkers(corners, markerLength, camMatrix, distCoeffs, rvecs, tvecs);
                 cv::aruco::drawDetectedMarkers(image, corners, ids);
                 for(unsigned int i = 0; i < ids.size(); i++){
-                cv::aruco::drawAxis(image, camMatrix, distCoeffs, rvecs[i], tvecs[i], markerLength * 0.5f);
+                    cv::aruco::drawAxis(image, camMatrix, distCoeffs, rvecs[i], tvecs[i], markerLength * 0.5f);
+                    std_msgs::Int16 markerId;
+                    markerId.data = ids[i];
+                    id_pub.publish(markerId);
                 }
             }
 
@@ -334,7 +350,6 @@ class ImageProcessor
                 idPoseMap.insert(std::make_pair(ids[i], pose));
             }
 
-
             std::map<int, geometry_msgs::Pose>::iterator it = idPoseMap.begin();
             geometry_msgs::PoseArray poseArray;
             poseArray.header.frame_id = "main";
@@ -343,15 +358,15 @@ class ImageProcessor
                 poseArray.poses.push_back(it->second);
                 it++;
             }
-            markers_pub_pose_array.publish(poseArray);
+            pose_array_pub.publish(poseArray);
 
             displayImage(image);
         }
     }
 
     void displayImage(cv::Mat processedImage){
-        ROS_INFO_STREAM("Display Image");
-      cv::imshow(OPENCV_WINDOW, processedImage);
+      //ROS_INFO_STREAM("Display Image");
+      //cv::imshow(OPENCV_WINDOW, processedImage);
       cv::waitKey(3);
       // Output modified video stream as ROS sensor_msgs::Image
       //image_pub_.publish(processedImage->toImageMsg());
