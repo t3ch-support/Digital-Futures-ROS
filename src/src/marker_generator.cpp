@@ -62,9 +62,19 @@ int main(int argc, char *argv[]) {
 
     int margins = board_square_length - board_marker_length;
 
+    // Custom dictionary
+    int number= 10, dimension=7;
+    Ptr<aruco::Dictionary> dictionary = cv::aruco::generateCustomDictionary(single_count, dimension);
+    cv::Mat store=dictionary->bytesList;
+    cv::FileStorage fs(out+"dic_save.yml", cv::FileStorage::WRITE);
+    fs << "MarkerSize" << dictionary->markerSize;
+    fs << "MaxCorrectionBits" << dictionary->maxCorrectionBits;
+    fs << "ByteList" << dictionary->bytesList;
+    fs.release();
 
-    Ptr<aruco::Dictionary> dictionary =
-        aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME(dictionary_id));
+
+    // Ptr<aruco::Dictionary> dictionary =
+    //     aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME(dictionary_id));
 
     Size imageSize;
     imageSize.width = board_squaresX * board_square_length + 2 * margins;
@@ -83,7 +93,9 @@ int main(int argc, char *argv[]) {
         imwrite(out+"charuco_board.jpg", boardImage);
     }else{
         Mat markerImage;
+        ROS_INFO_STREAM(single_count);
         for(int i = 0; i<single_count; i++){
+            ROS_INFO_STREAM(i);
             aruco::drawMarker(dictionary, i, single_size, markerImage, 1);
             imshow("marker", markerImage);
             waitKey(0);
@@ -92,7 +104,10 @@ int main(int argc, char *argv[]) {
             ss << out << "marker" << i << ".jpg";
             std::string outputName = ss.str();
             ROS_INFO_STREAM(outputName);
+            
             imwrite(outputName, markerImage);
+            
+            
         }
     }
     return 0;

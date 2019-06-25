@@ -1,8 +1,8 @@
 <launch>
     <node pkg="digital_futures" type="marker_generator" name="marker_generator" output="screen">
         <param name="board_or_single" value="1" />
-        <param name="single_count" value="10"/>
-        <param name="single_size" value="200"/>
+        <param name="single_count" value="1711"/>
+        <param name="single_size" value="400"/>
         <param name="dictionary_id" value="0" />
         <param name="board_marker_length" value ="275" />
         <param name="board_square_length" value ="350" />

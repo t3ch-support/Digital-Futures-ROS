@@ -3,12 +3,13 @@
         <param name="camera_calibration" value="$(find digital_futures)/config/calibration.yaml" />
         <param name="dictionary_id" value="0" />
         <param name="corner_refinement_method" value="1" />
-        <param name="marker_length" value="0.032" />
+        <param name="marker_length" value="0.070" />
         <param name="robot_id" value="robot_1" />
+        <param name="output_path" value ="$(find digital_futures)/output/" />
     </node> 
-    <!-- <node pkg="digital_futures" type="motor_control" name="motor_control" output="screen">
+    <node pkg="digital_futures" type="motor_control" name="motor_control" output="screen">
         <param name="robot_id" value="robot_1" />
-    </node> -->
+    </node>
 </launch>
 
 <!-- 

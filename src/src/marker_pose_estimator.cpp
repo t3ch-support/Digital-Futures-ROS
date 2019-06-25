@@ -96,7 +96,7 @@ class ImageProcessor
     cv::Mat camMatrix, distCoeffs;
     int dictionary_id;
     int corner_refinement_method;
-
+    std::string out;
     std::string robot_id;
 
     geometry_msgs::PoseStamped lastPose;
@@ -117,12 +117,14 @@ class ImageProcessor
         ROS_INFO_STREAM("Dictionrary ID: " << dictionary_id);
         _nh.getParam("corner_refinement_method", corner_refinement_method);
         ROS_INFO_STREAM("Corner Refinement Method: " << corner_refinement_method);
+        _nh.getParam("output_path", out);
+        ROS_INFO_STREAM("Output Path: " << out);
 
         // Publishers
         pose_pub = nh_.advertise<geometry_msgs::PoseStamped> ("/digital_futures/"+robot_id+"/robot_pose", 10);
         id_pub = nh_.advertise<std_msgs::Int16>("/digital_futures/"+robot_id+"/marker_id", 1);
 
-        cv::namedWindow(OPENCV_WINDOW);
+        //cv::namedWindow(OPENCV_WINDOW);
 
         // Initialize Camera
         setCameraParams(Camera);
@@ -141,8 +143,16 @@ class ImageProcessor
         }
         detectorParams->cornerRefinementMethod = corner_refinement_method;
         
-        // Load dictionary
-        dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionary_id));
+        // Load custom dictionary
+        cv::FileStorage fsr(out + "dic_save.yml", cv::FileStorage::READ);
+        int mSize, mCBits;
+        cv::Mat bits;
+        fsr["MarkerSize"] >> mSize;
+        fsr["MaxCorrectionBits"] >> mCBits;
+        fsr["ByteList"] >> bits;
+        fsr.release();        
+        dictionary = cv::makePtr<cv::aruco::Dictionary>(bits, mSize, mCBits);
+        // dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionary_id));
 
         // Load Camera Parameters
         bool readOk = readCameraParameters(camera_calibration, camMatrix, distCoeffs);
@@ -154,7 +164,7 @@ class ImageProcessor
 
     ~ImageProcessor()
     {
-      cv::destroyWindow(OPENCV_WINDOW);
+      //cv::destroyWindow(OPENCV_WINDOW);
     }
 
    
@@ -192,12 +202,11 @@ class ImageProcessor
 
             }
             if(minDistance != 1000){
-                ROS_INFO_STREAM("Min Distance: " << minDistance);
-                ROS_INFO_STREAM("MarkerID: " << closestMarkerId);
+                //ROS_INFO_STREAM("MarkerID: " << closestMarkerId);
                 std_msgs::Int16 markerId;
                 markerId.data = closestMarkerId;
                 id_pub.publish(markerId);
-            
+
             
                 // Process Marker Pose
                 geometry_msgs::PoseStamped pose;
@@ -217,18 +226,18 @@ class ImageProcessor
                 pose.pose.orientation.z = Q[2];
                 pose.pose.orientation.w = Q[3];
                 
-                pose.header.frame_id = "map";
+                std::string _id = std::to_string(closestMarkerId);
+                pose.header.frame_id = "marker_frame_"+_id;
                 pose.header.stamp = ros::Time::now();
                 pose_pub.publish(pose);
 
                 // Publish Transform
-                // Publish pose as transform
                 static tf2_ros::TransformBroadcaster br;
                 geometry_msgs::TransformStamped transformStamped;
-
+                ROS_INFO_STREAM("MarkerID: " << "marker_frame_" << _id);
                 transformStamped.header.stamp = ros::Time::now();
-                transformStamped.header.frame_id = "map";
-                transformStamped.child_frame_id = "marker_frame";
+                transformStamped.header.frame_id = "marker_frame_"+_id;
+                transformStamped.child_frame_id = robot_id;
                 transformStamped.transform.translation.x = pose.pose.position.x;
                 transformStamped.transform.translation.y = pose.pose.position.y;
                 transformStamped.transform.translation.z = pose.pose.position.z;
@@ -243,41 +252,6 @@ class ImageProcessor
                 transformStamped.transform.rotation.w = q.w();
                 br.sendTransform(transformStamped);
             }
-            // Publish Marker Pose
-
-
-            // std::map<int, geometry_msgs::Pose> idPoseMap;
-            // for(int i = 0; i<ids.size(); i++){
-
-            //     geometry_msgs::Pose pose;
-            //     // Assign translation vectors to pose
-            //     pose.position.x = tvecs[i][0];
-            //     pose.position.y = tvecs[i][1];
-            //     pose.position.z = tvecs[i][2];
-
-            //     cv::Mat rot_cv(3, 3, CV_32FC1);
-            //     cv::Rodrigues(rvecs[i], rot_cv);
-            //     double Q[4];
-            //     getQuaternion(rot_cv, Q);
-                
-            //     pose.orientation.x = Q[0];
-            //     pose.orientation.y = Q[1];
-            //     pose.orientation.z = Q[2];
-            //     pose.orientation.w = Q[3];
-
-            //     idPoseMap.insert(std::make_pair(ids[i], pose));
-            // }
-
-            // std::map<int, geometry_msgs::Pose>::iterator it = idPoseMap.begin();
-            // geometry_msgs::PoseArray poseArray;
-            // poseArray.header.frame_id = "main";
-            // poseArray.header.stamp = ros::Time::now();
-            // while(it != idPoseMap.end()){
-            //     poseArray.poses.push_back(it->second);
-            //     it++;
-            // }
-            // pose_array_pub.publish(poseArray);
-
             displayImage(image);
         }
     }
@@ -288,8 +262,10 @@ class ImageProcessor
         return distance;
     }
     void displayImage(cv::Mat processedImage){
-      cv::imshow(OPENCV_WINDOW, processedImage);
-      cv::waitKey(3);
+        //cv::Mat dst;               // dst must be a different Mat
+        //cv::flip(processedImage, dst, 1);     // because you can't flip in-place (leads to segfault)
+        //cv::imshow(OPENCV_WINDOW, dst);
+        //cv::waitKey(3);
     }
 };
 
