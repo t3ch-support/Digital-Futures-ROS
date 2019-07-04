@@ -124,7 +124,7 @@ class ImageProcessor
         pose_pub = nh_.advertise<geometry_msgs::PoseStamped> ("/digital_futures/"+robot_id+"/robot_pose", 10);
         id_pub = nh_.advertise<std_msgs::Int16>("/digital_futures/"+robot_id+"/marker_id", 1);
 
-        cv::namedWindow(OPENCV_WINDOW);
+        //cv::namedWindow(OPENCV_WINDOW);
 
         // Initialize Camera
         setCameraParams(Camera);
@@ -274,10 +274,10 @@ class ImageProcessor
         return distance;
     }
     void displayImage(cv::Mat processedImage){
-        cv::Mat dst;               // dst must be a different Mat
-        cv::flip(processedImage, dst, 1);     // because you can't flip in-place (leads to segfault)
-        cv::imshow(OPENCV_WINDOW, dst);
-        cv::waitKey(3);
+        // cv::Mat dst;               // dst must be a different Mat
+        // cv::flip(processedImage, dst, 1);     // because you can't flip in-place (leads to segfault)
+        // cv::imshow(OPENCV_WINDOW, dst);
+        // cv::waitKey(3);
     }
 };
 
