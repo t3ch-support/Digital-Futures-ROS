@@ -124,7 +124,7 @@ class ImageProcessor
         pose_pub = nh_.advertise<geometry_msgs::PoseStamped> ("/digital_futures/"+robot_id+"/robot_pose", 10);
         id_pub = nh_.advertise<std_msgs::Int16>("/digital_futures/"+robot_id+"/marker_id", 1);
 
-        //cv::namedWindow(OPENCV_WINDOW);
+        cv::namedWindow(OPENCV_WINDOW);
 
         // Initialize Camera
         setCameraParams(Camera);
@@ -210,14 +210,26 @@ class ImageProcessor
             
                 // Process Marker Pose
                 geometry_msgs::PoseStamped pose;
-                // Assign translation vectors to pose
-                pose.pose.position.x = tvecs[arrayLoc][0];
-                pose.pose.position.y = tvecs[arrayLoc][1];
-                pose.pose.position.z = tvecs[arrayLoc][2];
+           
 
                 cv::Mat rot_cv(3, 3, CV_32FC1);
                 cv::Rodrigues(rvecs[arrayLoc], rot_cv);
+                rot_cv = rot_cv.t(); // rotation of inverse
                 
+                //cv::Mat cameraRotationVector;
+                //cv::Rodrigues(rot_cv.t(), cameraRotationVector);
+                cv::Mat tvec_mat(tvecs[arrayLoc]);
+                
+                cv::Mat cameraTranslationVector = -rot_cv*tvec_mat;
+
+                // Assign translation vectors to pose
+                
+                // pose.pose.position.x = tvecs[arrayLoc][0];
+                // pose.pose.position.y = tvecs[arrayLoc][1];
+                // pose.pose.position.z = tvecs[arrayLoc][2];
+                pose.pose.position.x = cameraTranslationVector.at<double>(0);
+                pose.pose.position.y = cameraTranslationVector.at<double>(1);
+                pose.pose.position.z = cameraTranslationVector.at<double>(2);
                 double Q[4];
                 getQuaternion(rot_cv, Q);
                 
@@ -262,10 +274,10 @@ class ImageProcessor
         return distance;
     }
     void displayImage(cv::Mat processedImage){
-        //cv::Mat dst;               // dst must be a different Mat
-        //cv::flip(processedImage, dst, 1);     // because you can't flip in-place (leads to segfault)
-        //cv::imshow(OPENCV_WINDOW, dst);
-        //cv::waitKey(3);
+        cv::Mat dst;               // dst must be a different Mat
+        cv::flip(processedImage, dst, 1);     // because you can't flip in-place (leads to segfault)
+        cv::imshow(OPENCV_WINDOW, dst);
+        cv::waitKey(3);
     }
 };
 
